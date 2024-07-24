@@ -6,12 +6,26 @@ use rand::prelude::*;
 
 type Result<T> = std::result::Result<T, Box<dyn error::Error>>;
 
+/// This struct allows interacting with a live Milk session
 pub struct Milk {
     milk_process: Child,
     fifo_pipe: File,
 }
 
+/// This allows the clean exiting of the milk session when the
+/// Milk object goes out of scope
 impl Drop for Milk {
+    /// `drop(milk)` gracefully exits the Milk session by sending an exit command
+    /// to the attached fifo pipe. Then there is a blocking wait before continuing
+    /// execution. This is currently the cleanest way to synchronise the main rust
+    /// process with the milk one - by dropping the Milk instance, e.g.,:
+    /// ```
+    /// let mut milk = Milk::new().unwrap();
+    /// milk.cmd("writef2file \"/tmp/out.txt\" 0.5");
+    /// // --- at this point we don't know if the above command has finished.
+    /// drop(milk);
+    /// // --- now we can be sure that the command has been executed.
+    /// ``` 
     fn drop(&mut self) {
         // send exit signal to milk fifo
         self.cmd("exit");
@@ -21,10 +35,17 @@ impl Drop for Milk {
 }
 
 impl Milk {
+    /// Creates a Milk session and associated fifo pipe.
+    ///
+    /// # Example
+    /// ```
+    /// use milkrs::Milk;
+    /// 
+    /// let milk = Milk::new().unwrap();
+    /// ```
     pub fn new() -> Result<Self> {
         let mut rng = thread_rng();
         let fifo_name = format!("/tmp/.fifo.{:06}",rng.gen_range(0..=1_000_000));
-        //let fifo_name = format!("/tmp/.fifo.125");
         
         let mkfifo = Command::new("mkfifo")
             .stdin(Stdio::null())
@@ -60,9 +81,29 @@ impl Milk {
         };
         Ok(milk)
     }
+
+    /// Pass a command to the Milk session
+    ///
+    /// # Example
+    /// ```
+    /// let milk = Milk::new().unwrap();       // create milk instance
+    /// milk.cmd("mk3Dim out1 512 512 512");   // make 512 x 512 x 512 image
+    /// milk.cmd("imcp2shm out1 outs1");       // copy image to shm
+    /// ```
     pub fn cmd(&mut self, command: &str) {
         write!(self.fifo_pipe, "{command}\n").expect("couldn't write commmand string");
     }
+
+    /// Pass a vector of commands to the Milk session
+    ///
+    /// # Example
+    /// ```
+    /// let milk = Milk::new().unwrap();       // create milk instance
+    /// milk.cmds(vec![
+    ///     "mk3Dim out1 512 512 512",  // make 512 x 512 x 512 image
+    ///     "imcp2shm out1 outs1",      // copy image to shm
+    /// ]);
+    /// ```
     pub fn cmds(&mut self, commands: Vec<&str>) {
         for command in commands {
             self.cmd(command);
