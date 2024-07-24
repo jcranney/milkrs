@@ -2,6 +2,14 @@
 name = "milkrs"
 version = "0.1.0"
 edition = "2021"
+license-file = "LICENSE"
+repository = "https://github.com/jcranney/milkrs"
+authors = ["Jesse <jesse.cranney@anu.edu.au"]
+description = "Thin rust wrapper around Milk CLI"
+readme = "README.md"
+keywords = ["milk","rtc","adaptive_optics"]
+categories = ["api-bindings"]
+
 
 [dependencies]
 rand = "0.8.5"
