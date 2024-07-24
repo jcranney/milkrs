@@ -20,6 +20,7 @@ impl Drop for Milk {
     /// execution. This is currently the cleanest way to synchronise the main rust
     /// process with the milk one - by dropping the Milk instance, e.g.,:
     /// ```
+    /// use milkrs::Milk;
     /// let mut milk = Milk::new().unwrap();
     /// milk.cmd("writef2file \"/tmp/out.txt\" 0.5");
     /// // --- at this point we don't know if the above command has finished.
@@ -44,6 +45,12 @@ impl Milk {
     /// let milk = Milk::new().unwrap();
     /// ```
     pub fn new() -> Result<Self> {
+        Ok(Self::new_named(None)?)
+    }
+
+    /// Same as new(), but provides an optional process name for Milk. new is an
+    /// alias for this function with name set to None.
+    pub fn new_named(name: Option<&str>) -> Result<Self> {
         let mut rng = thread_rng();
         let fifo_name = format!("/tmp/.fifo.{:06}",rng.gen_range(0..=1_000_000));
         
@@ -62,6 +69,10 @@ impl Milk {
             .arg("-f")
             .arg("-F")
             .arg(fifo_name.clone())
+            .args(match name {
+                Some(name) => vec!["-n",name],
+                None => vec![]
+            })
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .stdin(Stdio::null())
@@ -86,7 +97,8 @@ impl Milk {
     ///
     /// # Example
     /// ```
-    /// let milk = Milk::new().unwrap();       // create milk instance
+    /// use milkrs::Milk;
+    /// let mut milk = Milk::new().unwrap();       // create milk instance
     /// milk.cmd("mk3Dim out1 512 512 512");   // make 512 x 512 x 512 image
     /// milk.cmd("imcp2shm out1 outs1");       // copy image to shm
     /// ```
@@ -98,7 +110,8 @@ impl Milk {
     ///
     /// # Example
     /// ```
-    /// let milk = Milk::new().unwrap();       // create milk instance
+    /// use milkrs::Milk;
+    /// let mut milk = Milk::new().unwrap();       // create milk instance
     /// milk.cmds(vec![
     ///     "mk3Dim out1 512 512 512",  // make 512 x 512 x 512 image
     ///     "imcp2shm out1 outs1",      // copy image to shm
